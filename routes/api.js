@@ -1,9 +1,12 @@
 const router = require('express').Router();
 
 // Cache to avoid hitting the Discord API every request
+// Functions
 let statsCache = null;
+let leaderboardCache = {}; 
 let lastFetchTime = 0;
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minute cache to avoid Discord rate limits
+const CACHE_DURATION = 10 * 60 * 1000; // Don't spam the crap out of APIs, They dislike it.
 
 router.get('/stats', async (req, res) => {
     const GUILD_ID = '1443615278608027688';
@@ -61,6 +64,49 @@ router.get('/stats', async (req, res) => {
         // Return cache if available
         if (statsCache) return res.json(statsCache);
 
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+router.get('/leaderboard', async (req, res) => {
+    const GUILD_ID = '1443615278608027688';
+    const currentTime = Date.now();
+    
+    if (leaderboardCache[page] && (currentTime - leaderboardCache[page].time < CACHE_DURATION)) {
+        console.log(`Serving Page ${page} from cache`);
+        return res.json(leaderboardCache[page].data);
+    }
+    try {
+        const response = await fetch(`https://api.lurkr.gg/v2/levels/${GUILD_ID}?page=${page}`, {
+            method: 'GET',
+            headers: {
+                'X-API-Key': process.env.LURKR_API_KEY,
+                'Content-Type': 'application/json'
+            }
+
+        if (!response.ok) {
+            if (leaderboardCache[page]) return res.json(leaderboardCache[page].data);
+            return res.status(response.status).json({ error: 'Lurkr API unreachable' });
+        }
+
+        const data = await response.json();
+            username: player.user?.username || 'Unknown',
+            discriminator: player.user?.discriminator || '0000',
+            avatar: player.user?.avatar || null,
+            level: player.level,
+            xp: player.xp,
+            rank: player.rank
+        }));
+
+        leaderboardCache[page] = {
+            data: formattedLeaderboard,
+            time: currentTime
+
+        res.json(formattedLeaderboard);
+
+    } catch (err) {
+        console.error('Lurkr Fetch Error:', err);
+        if (leaderboardCache[page]) return res.json(leaderboardCache[page].data);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
