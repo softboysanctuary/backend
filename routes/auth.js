@@ -44,7 +44,7 @@ router.get('/discord/callback', (req, res, next) => {
 
 // Logs the user out and destroys the session
 router.get('/logout', (req, res) => {
-    req.logout(() => res.redirect('/'));
+    req.logout(() => res.redirect('https://softboy.site/'));
 });
 
 // Returns the currently logged-in user
