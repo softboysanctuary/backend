@@ -44,6 +44,7 @@ app.use(passport.session());
 
 app.use('/auth', require('./routes/auth'));
 app.use('/api', require('./routes/api'));
+app.use('/api', require('./routes/reviews'));
 
 const PORT = process.env.PORT || 3003;
 app.listen(PORT, () => console.log(`Backend live on http://localhost:${PORT}`));

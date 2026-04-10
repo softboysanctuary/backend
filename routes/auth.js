@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const passport = require('passport');
 const db = require('../database/db'); 
+const { isAuthenticated, getAvatar } = require('../utils/discord');
 
 // Starts the Discord OAuth login flow
 router.get('/discord', passport.authenticate('discord'));
@@ -53,9 +54,7 @@ router.get('/me', (req, res) => {
 
 // Returns the 10 most recently logged-in members
 // Kind of think about making those like "Recently viewed" forum thingies lol
-router.get('/members', (req, res) => {
-    if (!req.user) return res.status(401).json([]);
-    
+router.get('/members', isAuthenticated, (req, res) => {
     try {
         const members = db.prepare(`
             SELECT username, discord_id, avatar, last_login 
@@ -63,9 +62,14 @@ router.get('/members', (req, res) => {
             ORDER BY last_login DESC 
             LIMIT 10
         `).all();
-        res.json(members);
+
+        const formatted = members.map(m => ({
+            ...m,
+            avatar_url: getAvatar(m.discord_id, m.avatar)
+        }));
+
+        res.json(formatted);
     } catch (err) {
-        console.error("Database error in /members:", err);
         res.status(500).json({ error: "Failed to fetch members" });
     }
 });

@@ -18,4 +18,17 @@ db.exec(`
   )
 `);
 
+// Create reviews table if it doesn't exist
+db.exec(`
+  CREATE TABLE IF NOT EXISTS reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL UNIQUE, -- Ensures one review per person
+    content TEXT NOT NULL,
+    rating INTEGER CHECK(rating >= 1 AND rating <= 5),
+    is_anonymous BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(discord_id)
+  )
+`);
+
 module.exports = db;
