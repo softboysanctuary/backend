@@ -1,12 +1,10 @@
 const router = require('express').Router();
 
-// Cache to avoid hitting the Discord API every request
-// Functions
+// Cache variables
 let statsCache = null;
 let leaderboardCache = {}; 
 let lastFetchTime = 0;
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minute cache to avoid Discord rate limits
-const CACHE_DURATION = 10 * 60 * 1000; // Don't spam the crap out of APIs, They dislike it.
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minute cache
 
 router.get('/stats', async (req, res) => {
     const GUILD_ID = '1443615278608027688';
@@ -30,12 +28,8 @@ router.get('/stats', async (req, res) => {
         ]);
 
         if (!guildRes.ok) {
-            const errorData = await guildRes.json();
-            console.error('Discord API Error:', errorData);
-            
             // Fallback to cache if API fails
             if (statsCache) return res.json(statsCache);
-            
             return res.status(guildRes.status).json({ error: 'Failed to fetch guild data' });
         }
 
@@ -55,7 +49,6 @@ router.get('/stats', async (req, res) => {
         // Update cache
         statsCache = newStats;
         lastFetchTime = currentTime;
-
         res.json(newStats);
 
     } catch (err) {
@@ -63,7 +56,6 @@ router.get('/stats', async (req, res) => {
 
         // Return cache if available
         if (statsCache) return res.json(statsCache);
-
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -71,11 +63,12 @@ router.get('/stats', async (req, res) => {
 router.get('/leaderboard', async (req, res) => {
     const GUILD_ID = '1443615278608027688';
     const currentTime = Date.now();
-    
+    const page = req.query.page || "1"; 
+
     if (leaderboardCache[page] && (currentTime - leaderboardCache[page].time < CACHE_DURATION)) {
-        console.log(`Serving Page ${page} from cache`);
         return res.json(leaderboardCache[page].data);
     }
+
     try {
         const response = await fetch(`https://api.lurkr.gg/v2/levels/${GUILD_ID}?page=${page}`, {
             method: 'GET',
@@ -83,6 +76,7 @@ router.get('/leaderboard', async (req, res) => {
                 'X-API-Key': process.env.LURKR_API_KEY,
                 'Content-Type': 'application/json'
             }
+        }); 
 
         if (!response.ok) {
             if (leaderboardCache[page]) return res.json(leaderboardCache[page].data);
@@ -90,6 +84,9 @@ router.get('/leaderboard', async (req, res) => {
         }
 
         const data = await response.json();
+        
+        const formattedLeaderboard = (data.levels || []).map(player => ({
+            id: player.userId,
             username: player.user?.username || 'Unknown',
             discriminator: player.user?.discriminator || '0000',
             avatar: player.user?.avatar || null,
@@ -101,6 +98,7 @@ router.get('/leaderboard', async (req, res) => {
         leaderboardCache[page] = {
             data: formattedLeaderboard,
             time: currentTime
+        };
 
         res.json(formattedLeaderboard);
 
